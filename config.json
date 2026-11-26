@@ -1,0 +1,93 @@
+{
+  "model": {
+    "base_url": "https://api.deepseek.com",
+    "model": "deepseek-chat",
+    "temperature": 1.15,
+    "max_tokens": 700
+  },
+  "limits": {
+    "proactive": {
+      "per_friend_per_day": 2,
+      "window_start": 9,
+      "window_end": 23,
+      "quiet_start": 23,
+      "quiet_end": 9
+    },
+    "group_insert": {
+      "per_hour_per_group": 12,
+      "per_day_per_group": 60,
+      "min_new_messages": 1,
+      "cooldown_sec": 8,
+      "dialog_cooldown_sec": 8,
+      "question_cooldown_sec": 5,
+      "after_reply_window_sec": 90
+    },
+    "typing": {
+      "chars_per_sec": 12.0,
+      "min_delay": 0.2,
+      "max_delay": 1.8,
+      "first_delay_max": 0.4
+    },
+    "bubbles": {
+      "max": 3
+    },
+    "free_roam": {
+      "chance": 0.18
+    },
+    "debounce_sec": 0.6
+  },
+  "features": {
+    "allow_moments_post": true,
+    "allow_voice_video": false,
+    "allow_redpacket": false,
+    "allow_change_profile": false,
+    "allow_add_friend": false
+  },
+  "admin": {
+    "host": "127.0.0.1",
+    "port": 8799
+  },
+  "uia": {
+    "self_name": "小涵",
+    "poll_interval": 1.0,
+    "chat_whitelist": []
+  },
+  "wx4": {
+    "poll_interval": 1.0
+  },
+  "moments": {
+    "enabled": true,
+    "per_day": 1,
+    "window": [
+      10,
+      22
+    ],
+    "chance": 0.18
+  },
+  "client": {
+    "python": "",
+    "exe": "",
+    "process": "Weixin"
+  },
+  "imagegen": {
+    "enabled": true,
+    "selfie_model": "Qwen/Qwen-Image",
+    "draw_model": "Qwen/Qwen-Image",
+    "image_size": "1024x1024",
+    "steps": 30,
+    "guidance": 4.5,
+    "colored": false
+  },
+  "proactive_defaults": {
+    "妈妈": 1,
+    "爸爸": 0,
+    "奶奶": 1,
+    "姐姐": 0
+  },
+  "browse": {
+    "enabled": true,
+    "interval_min": 150,
+    "chance": 0.7,
+    "max_per_day": 4
+  }
+}

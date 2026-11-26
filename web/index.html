@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>具小涵 · 控制台</title>
+<style>
+  :root { --fg:#1f2329; --dim:#8a9099; --line:#e5e6eb; --bg:#f7f8fa; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.6 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif; color:var(--fg); background:var(--bg); }
+  header { padding:14px 20px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:12px; }
+  header h1 { font-size:16px; margin:0; font-weight:600; }
+  header .sub { color:var(--dim); font-size:12px; }
+  nav { display:flex; gap:4px; padding:10px 20px 0; }
+  nav button { border:0; background:transparent; padding:8px 14px; border-radius:8px; cursor:pointer; font-size:14px; color:var(--dim); }
+  nav button.on { background:#fff; color:var(--fg); box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  main { padding:16px 20px 40px; max-width:960px; }
+  .panel { display:none; }
+  .panel.on { display:block; }
+  textarea { width:100%; min-height:420px; padding:14px; border:1px solid var(--line); border-radius:10px; font:13px/1.7 ui-monospace,Consolas,monospace; resize:vertical; }
+  .row { display:flex; gap:10px; align-items:center; margin:10px 0; flex-wrap:wrap; }
+  input[type=text], input[type=number] { padding:7px 10px; border:1px solid var(--line); border-radius:8px; font-size:13px; }
+  button.primary { background:#1f2329; color:#fff; border:0; padding:8px 16px; border-radius:8px; cursor:pointer; }
+  button.ghost { background:#fff; border:1px solid var(--line); padding:7px 12px; border-radius:8px; cursor:pointer; }
+  table { width:100%; border-collapse:collapse; background:#fff; border-radius:10px; overflow:hidden; }
+  th,td { text-align:left; padding:9px 12px; border-bottom:1px solid var(--line); font-size:13px; }
+  th { color:var(--dim); font-weight:500; }
+  #log { background:#fff; border:1px solid var(--line); border-radius:10px; padding:12px; height:460px; overflow:auto; font:12px/1.6 ui-monospace,Consolas,monospace; white-space:pre-wrap; }
+  .bubble { background:#fff; border:1px solid var(--line); border-radius:12px; padding:10px 14px; margin:8px 0; max-width:75%; }
+  .bubble.me { margin-left:auto; }
+  .hint { color:var(--dim); font-size:12px; }
+  .ok { color:#0a7d43; }
+  .err { color:#c0392b; }
+</style>
+</head>
+<body>
+<header>
+  <h1>具小涵 · 控制台</h1>
+  <span class="sub" id="clock"></span>
+</header>
+<nav>
+  <button data-p="persona" class="on">人设</button>
+  <button data-p="friends">好友名单</button>
+  <button data-p="try">试聊</button>
+  <button data-p="log">日志</button>
+</nav>
+<main>
+  <section class="panel on" id="p-persona">
+    <p class="hint">改完点保存，下一条消息就生效，不用重启。</p>
+    <textarea id="persona"></textarea>
+    <div class="row"><button class="primary" onclick="savePersona()">保存人设</button><span id="persona-msg" class="hint"></span></div>
+  </section>
+
+  <section class="panel" id="p-friends">
+    <p class="hint">只跟这里列为好友的人聊。proactive_limit = 每天最多主动几条。</p>
+    <div class="row">
+      <input type="text" id="f-wxid" placeholder="wxid（或备注名）">
+      <input type="text" id="f-name" placeholder="称呼">
+      <input type="text" id="f-relation" placeholder="关系，如 哥/同事/表姐">
+      <input type="text" id="f-note" placeholder="能聊到什么程度">
+      <input type="number" id="f-limit" value="1" min="0" max="5" style="width:80px">
+      <button class="primary" onclick="saveFriend()">添加 / 更新</button>
+    </div>
+    <table><thead><tr><th>wxid</th><th>称呼</th><th>关系</th><th>备注</th><th>每日主动</th></tr></thead><tbody id="f-body"></tbody></table>
+  </section>
+
+  <section class="panel" id="p-try">
+    <p class="hint">不连微信，直接看她会怎么回。这个对话不进正式记录。</p>
+    <div class="row"><input type="text" id="try-input" placeholder="说点什么…" style="flex:1" onkeydown="if(event.key==='Enter')tryChat()"><button class="primary" onclick="tryChat()">发送</button></div>
+    <div id="try-log"></div>
+  </section>
+
+  <section class="panel" id="p-log">
+    <div class="row"><button class="ghost" onclick="loadLog()">刷新</button><span class="hint">每 5 秒自动刷</span></div>
+    <div id="log"></div>
+  </section>
+</main>
+<script>
+let state = null;
+const $ = s => document.querySelector(s);
+
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('nav button').forEach(x => x.classList.remove('on'));
+  document.querySelectorAll('.panel').forEach(x => x.classList.remove('on'));
+  b.classList.add('on');
+  $('#p-' + b.dataset.p).classList.add('on');
+});
+
+async function load() {
+  const r = await fetch('/api/state');
+  state = await r.json();
+  $('#persona').value = state.persona;
+  $('#clock').textContent = state.server_time;
+  renderFriends();
+  renderLog(state.log);
+}
+function renderFriends() {
+  $('#f-body').innerHTML = (state.contacts || []).map(c =>
+    `<tr><td>${esc(c.wxid)}</td><td>${esc(c.name||'')}</td><td>${esc(c.relation||'')}</td><td>${esc(c.note||'')}</td><td>${c.proactive_limit}</td></tr>`
+  ).join('') || '<tr><td colspan="5" class="hint">还没有好友</td></tr>';
+}
+function renderLog(lines) { $('#log').textContent = (lines || []).join('\n'); }
+function esc(s) { return String(s).replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
+
+async function savePersona() {
+  const r = await fetch('/api/persona', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({text: $('#persona').value})});
+  const d = await r.json();
+  $('#persona-msg').textContent = d.ok ? '已保存 ✓' : ('失败：' + (d.error||''));
+  $('#persona-msg').className = d.ok ? 'hint ok' : 'hint err';
+}
+async function saveFriend() {
+  const body = {
+    wxid: $('#f-wxid').value, name: $('#f-name').value, relation: $('#f-relation').value,
+    note: $('#f-note').value, proactive_limit: Number($('#f-limit').value || 1), proactive_enabled: true
+  };
+  if (!body.wxid) return alert('填个 wxid');
+  const r = await fetch('/api/contact', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+  const d = await r.json();
+  if (d.ok) { state.contacts = d.contacts; renderFriends(); $('#f-wxid').value=''; $('#f-name').value=''; $('#f-relation').value=''; $('#f-note').value=''; }
+}
+async function tryChat() {
+  const text = $('#try-input').value.trim();
+  if (!text) return;
+  $('#try-input').value = '';
+  $('#try-log').insertAdjacentHTML('beforeend', `<div class="bubble me">${esc(text)}</div>`);
+  const r = await fetch('/api/test', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({text})});
+  const d = await r.json();
+  const out = d.error ? `<div class="bubble err">${esc(d.error)}</div>`
+    : (d.replies && d.replies.length ? d.replies.map(x => `<div class="bubble">${esc(x)}</div>`).join('') : `<div class="bubble hint">（她没说话）</div>`);
+  $('#try-log').insertAdjacentHTML('beforeend', out);
+}
+async function loadLog() {
+  const r = await fetch('/api/log');
+  const d = await r.json();
+  renderLog(d.log);
+}
+load();
+setInterval(loadLog, 5000);
+setInterval(load, 30000);
+</script>
+</body>
+</html>

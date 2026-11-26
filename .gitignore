@@ -1,0 +1,19 @@
+# 运行时产物（不进仓库）
+data/
+stickers/
+wechatauto_logs/
+__pycache__/
+*.pyc
+*.pyo
+
+# 密钥
+keys.json
+
+# 日志与临时文件
+*.log
+*.txt
+!README.md
+
+# Python 虚拟环境
+.venv/
+venv/
